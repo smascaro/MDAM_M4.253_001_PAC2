@@ -1,3 +1,4 @@
+import { Movie } from "./model";
 import {
   getCharacterName,
   getMovieCharacters,
@@ -8,6 +9,8 @@ import {
   listMovies,
   listMoviesSorted,
 } from "./pec2";
+
+import { testCharactersUrls } from "./test-data";
 
 describe("PEC2 Tests", () => {
   describe("Exercici 1 - Movies count", () => {
@@ -188,6 +191,58 @@ describe("PEC2 Tests", () => {
           }),
         ])
       );
+    });
+  });
+  describe("Exercici 7 - Create movie", () => {
+    test("getHomeworlds - returned array is valid", async () => {
+      let movie = new Movie("A New Hope", testCharactersUrls);
+      let homeworlds = await movie.getHomeworlds();
+      expect(homeworlds.length).not.toEqual(0);
+      expect(homeworlds.length).toEqual(movie.characters.length);
+    });
+    test("getHomeworlds - returned array is empty if there are no characters in the movie", async () => {
+      let movie = new Movie("A New Hope", []);
+      let homeworlds = await movie.getHomeworlds();
+      expect(homeworlds.length).toEqual(0);
+      expect(homeworlds.length).toEqual(movie.characters.length);
+    });
+    test("getCharacters - returned array is valid", async () => {
+      let movie = new Movie("A New Hope", testCharactersUrls);
+      let characters = await movie.getCharacters();
+      expect(characters.length).not.toEqual(0);
+      expect(characters.length).toEqual(movie.characters.length);
+      expect(characters).toEqual(expect.arrayContaining(["Luke Skywalker"]));
+    });
+    test("getCharacters - returned array is empty if there are no characters in the movie", async () => {
+      let movie = new Movie("A New Hope", []);
+      let characters = await movie.getCharacters();
+      expect(characters.length).toEqual(0);
+      expect(characters.length).toEqual(movie.characters.length);
+    });
+    test("getHomeworldsReverse - returned array is empty if there are no characters in the movie", async () => {
+      let movie = new Movie("A New Hope", []);
+      let characters = await movie.getHomeworldsReverse();
+      expect(characters.length).toEqual(0);
+      expect(characters.length).toEqual(movie.characters.length);
+    });
+    test("getHomeworldsReverse - returned array is valid", async () => {
+      let movie = new Movie("A New Hope", testCharactersUrls);
+      let characters = await movie.getHomeworldsReverse();
+      expect(characters.length).not.toEqual(0);
+      expect(characters.length).toEqual(movie.characters.length);
+      expect(characters).toEqual(expect.arrayContaining(["Tatooine"]));
+    });
+    test("getHomeworldsReverse - returned array is alphabetically inverse sorted", async () => {
+      let movie = new Movie("A New Hope", testCharactersUrls);
+      let homeworlds = await movie.getHomeworldsReverse();
+      let homeworldsReversed = Array.from(homeworlds).sort().reverse();
+      expect(homeworldsReversed).toEqual(homeworlds);
+    });
+    test("getHomeworldsReverse - returned array is empty if there are no characters in the movie", async () => {
+      let movie = new Movie("A New Hope", []);
+      let homeworlds = await movie.getHomeworldsReverse();
+      expect(homeworlds.length).toEqual(0);
+      expect(homeworlds.length).toEqual(movie.characters.length);
     });
   });
 });

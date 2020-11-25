@@ -4,6 +4,8 @@ import { Film, MovieCharacter, MovieInfo } from "./model";
 const endpoint = "https://swapi.dev/api/";
 const filmsResource = "films";
 const films = `${endpoint}${filmsResource}`;
+const peopleResource = "people";
+const people = `${endpoint}${peopleResource}`;
 export function getMovieCount() {
   return new Promise(async (resolve, reject) => {
     let response = await fetch(films);
@@ -97,20 +99,6 @@ const mapResponseToMovieInfo = (result) =>
 
 export function getCharacterName(url) {
   return getAttributeFromUrl(url, "name");
-  // return new Promise(async (resolve, reject) => {
-  //   if (url.indexOf("http://") == -1 && url.indexOf("https://") == -1) {
-  //     reject("URL is not valid");
-  //     return;
-  //   }
-  //   url = url.replace("http://", "https://");
-  //   let response = await fetch(url);
-  //   if (response.ok) {
-  //     let json = await response.json();
-  //     resolve(json.name);
-  //   } else {
-  //     rejectWithHttpError(reject, films, response);
-  //   }
-  // });
 }
 
 export function getMovieCharacters(id) {
@@ -147,11 +135,11 @@ function getAttributeFromUrl(url, attribute) {
   });
 }
 
-async function getPlanetNameFromCharacter(characterUrl) {
+export async function getPlanetNameFromCharacter(characterUrl) {
   let planetUrl = await getAttributeFromUrl(characterUrl, "homeworld");
   return getPlanetName(planetUrl);
 }
-function getPlanetName(url) {
+export function getPlanetName(url) {
   return getAttributeFromUrl(url, "name");
 }
 export function getMovieCharactersAndHomeworlds(id) {
@@ -172,6 +160,27 @@ export function getMovieCharactersAndHomeworlds(id) {
     resolve(movieInfo);
   });
 }
+
+export function getCharacterInfoByName(name) {
+  return new Promise(async (resolve, reject) => {
+    let response = await fetch(`${people}?search=${name}`);
+    if (response.ok) {
+      let json = await response.json();
+      console.log(json);
+      if (json.count == 0) {
+        reject(`No character found with name matching pattern ${name}`);
+      } else if (json.count > 1) {
+        reject(
+          `Too many characters found with name matching pattern ${name}. Name should be unique`
+        );
+      } else {
+        resolve(json.results[0]);
+      }
+    } else {
+      rejectWithHttpError(reject, people, response);
+    }
+  });
+}
 function rejectWithHttpError(reject, resource, response) {
   reject(reason(resource, response));
 }
@@ -188,4 +197,5 @@ export default {
   getCharacterName,
   getMovieCharacters,
   getMovieCharactersAndHomeworlds,
+  getPlanetNameFromCharacter,
 };
