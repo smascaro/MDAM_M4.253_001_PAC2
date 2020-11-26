@@ -1,58 +1,59 @@
 import * as fetch from "node-fetch";
-import { Film, MovieCharacter, MovieInfo } from "./model";
 
+/* #region Endpoint values */
 const endpoint = "https://swapi.dev/api/";
 const filmsResource = "films";
 const films = `${endpoint}${filmsResource}`;
-const peopleResource = "people";
-const people = `${endpoint}${peopleResource}`;
-export function getMovieCount() {
+/* #endregion */
+
+function getMovieCount() {
   return new Promise(async (resolve, reject) => {
     let response = await fetch(films);
     if (response.ok) {
       let json = await response.json();
       resolve(json.count);
     } else {
-      reject(reason(filmsResource, response));
+      rejectWithHttpError(reject, filmsResource, response);
     }
   });
 }
 
-export function listMovies() {
+function listMovies() {
   return new Promise(async (resolve, reject) => {
     let response = await fetch(films);
     if (response.ok) {
       let json = await response.json();
-      let movies = json.results.map(mapResponseToFilm);
+      let movies = json.results.map(mapResponseToFilmCallback);
       resolve(movies);
     } else {
-      reject(reason(filmsResource, response));
+      rejectWithHttpError(reject, filmsResource, response);
     }
   });
 }
 
-export function listMoviesSorted() {
+function listMoviesSorted() {
   return new Promise(async (resolve, reject) => {
     let response = await fetch(films);
     if (response.ok) {
       let json = await response.json();
       let sortedMovies = json.results
-        .map(mapResponseToFilm)
-        .sort(compareByTitle);
+        .map(mapResponseToFilmCallback)
+        .sort(compareByTitleCallback);
       resolve(sortedMovies);
     } else {
-      reject(reason(filmsResource, response));
+      rejectWithHttpError(reject, filmsResource, response);
     }
   });
 }
-export function listEvenMoviesSorted() {
+
+function listEvenMoviesSorted() {
   return new Promise(async (resolve, reject) => {
     let response = await fetch(films);
     if (response.ok) {
       let json = await response.json();
       let sortedMovies = json.results
-        .map(mapResponseToFilm)
-        .sort(compareByEpisodeId);
+        .map(mapResponseToFilmCallback)
+        .sort(compareByEpisodeIdCallback);
       resolve(sortedMovies);
     } else {
       rejectWithHttpError(reject, films, response);
@@ -60,29 +61,12 @@ export function listEvenMoviesSorted() {
   });
 }
 
-const mapResponseToFilm = (result) =>
-  new Film(
-    result.title,
-    result.director,
-    result.release_date,
-    result.episode_id
-  );
-
-const compareByTitle = (first, second) => {
-  if (first.name < second.name) return -1;
-  if (first.name > second.name) return 1;
-  return 0;
-};
-
-const compareByEpisodeId = (first, second) => {
-  if (first.episodeID < second.episodeID) return -1;
-  if (first.episodeID > second.episodeID) return 1;
-  return 0;
-};
-
-export function getMovieInfo(id) {
-  if (isNaN(id)) return new MovieInfo();
+function getMovieInfo(id) {
   return new Promise(async (resolve, reject) => {
+    if (isNaN(id)) {
+      reject("Not a valid id");
+      return null;
+    }
     let response = await fetch(`${films}/${id}`);
     if (response.ok) {
       let json = await response.json();
@@ -94,14 +78,11 @@ export function getMovieInfo(id) {
   });
 }
 
-const mapResponseToMovieInfo = (result) =>
-  new MovieInfo(result.title, result.episode_id, result.characters);
-
-export function getCharacterName(url) {
+function getCharacterName(url) {
   return getAttributeFromUrl(url, "name");
 }
 
-export function getMovieCharacters(id) {
+function getMovieCharacters(id) {
   return new Promise(async (resolve, reject) => {
     if (isNaN(id)) {
       reject("Invalid id");
@@ -118,6 +99,16 @@ export function getMovieCharacters(id) {
   });
 }
 
+async function getPlanetNameFromCharacter(characterUrl) {
+  let planetUrl = await getAttributeFromUrl(characterUrl, "homeworld");
+  return getPlanetName(planetUrl);
+}
+
+function getPlanetName(url) {
+  return getAttributeFromUrl(url, "name");
+}
+
+//Reuse this function to avoid code duplication all over codebase
 function getAttributeFromUrl(url, attribute) {
   return new Promise(async (resolve, reject) => {
     if (url.indexOf("http://") == -1 && url.indexOf("https://") == -1) {
@@ -135,14 +126,7 @@ function getAttributeFromUrl(url, attribute) {
   });
 }
 
-export async function getPlanetNameFromCharacter(characterUrl) {
-  let planetUrl = await getAttributeFromUrl(characterUrl, "homeworld");
-  return getPlanetName(planetUrl);
-}
-export function getPlanetName(url) {
-  return getAttributeFromUrl(url, "name");
-}
-export function getMovieCharactersAndHomeworlds(id) {
+function getMovieCharactersAndHomeworlds(id) {
   return new Promise(async (resolve, reject) => {
     if (isNaN(id)) {
       reject(`Invalid id, ${id} must be a number`);
@@ -161,32 +145,133 @@ export function getMovieCharactersAndHomeworlds(id) {
   });
 }
 
-export function getCharacterInfoByName(name) {
-  return new Promise(async (resolve, reject) => {
-    let response = await fetch(`${people}?search=${name}`);
-    if (response.ok) {
-      let json = await response.json();
-      console.log(json);
-      if (json.count == 0) {
-        reject(`No character found with name matching pattern ${name}`);
-      } else if (json.count > 1) {
-        reject(
-          `Too many characters found with name matching pattern ${name}. Name should be unique`
-        );
-      } else {
-        resolve(json.results[0]);
-      }
-    } else {
-      rejectWithHttpError(reject, people, response);
-    }
-  });
+async function createMovie(id) {
+  const movie = await getMovieInfo(id);
+  return new Movie(movie.name, movie.characters);
 }
+
+async function createMovieExercise8(id) {
+  // We catch the rejected promise so the error is not propagated to the client.
+  // In case of error, null is returned so the client handles it as an error.
+  const movie = await getMovieInfo(id).catch((error) => {
+    console.error(error);
+    return null;
+  });
+  return movie;
+}
+/* #region Helpers & Callbacks */
+
+const mapResponseToMovieInfo = (result) =>
+  new MovieInfo(result.title, result.episode_id, result.characters);
+
+const mapResponseToFilmCallback = (result) =>
+  new Film(
+    result.title,
+    result.director,
+    result.release_date,
+    result.episode_id
+  );
+
+const compareByTitleCallback = (first, second) => {
+  if (first.name < second.name) return -1;
+  if (first.name > second.name) return 1;
+  return 0;
+};
+
+const compareByEpisodeIdCallback = (first, second) => {
+  if (first.episodeID < second.episodeID) return -1;
+  if (first.episodeID > second.episodeID) return 1;
+  return 0;
+};
+/* #endregion */
+/* #region Common */
+
 function rejectWithHttpError(reject, resource, response) {
   reject(reason(resource, response));
 }
+
 function reason(resource, response) {
   return `Call to endpoint '${resource}' returned status code ${response.status}`;
 }
+/* #endregion */
+/* #region Models */
+class Film {
+  name = "";
+  director = "";
+  release = "";
+  episodeID = 0;
+  constructor(filmName, filmDirector, filmReleaseDate, filmEpisodeId) {
+    this.name = filmName;
+    this.director = filmDirector;
+    this.release = filmReleaseDate;
+    this.episodeID = filmEpisodeId;
+  }
+}
+
+class MovieInfo {
+  name = "";
+  episodeID = 0;
+  characters = [];
+  constructor(movieName, movieEpisodeId, movieCharacters) {
+    this.name = movieName;
+    this.episodeID = movieEpisodeId;
+    this.characters = movieCharacters;
+  }
+}
+
+class MovieCharacter {
+  name = "";
+  homeworld = "";
+  constructor(characterName, characterHomeworld) {
+    this.name = characterName;
+    this.homeworld = characterHomeworld;
+  }
+}
+
+//Exercise 7
+class Movie {
+  name = "";
+  characters = [];
+  constructor(movieName, movieCharactersUrls) {
+    this.name = movieName;
+    this.characters = movieCharactersUrls;
+  }
+  getCharacters = () => {
+    return new Promise(async (resolve, reject) => {
+      let charactersNames = await Promise.all(
+        this.characters.map(async (item) => {
+          const characterName = await getCharacterName(item);
+          return characterName;
+        })
+      );
+      resolve(charactersNames);
+    });
+  };
+  getHomeworlds = () => {
+    return new Promise(async (resolve, reject) => {
+      let planets = await Promise.all(
+        this.characters.map(async (item) => {
+          let characterPlanet = await getPlanetNameFromCharacter(item);
+          return characterPlanet;
+        })
+      );
+      resolve(planets);
+    });
+  };
+  #compareByTitleReverseCallback = (first, second) => {
+    if (first < second) return 1;
+    if (first > second) return -1;
+    return 0;
+  };
+  getHomeworldsReverse = () => {
+    return new Promise(async (resolve, reject) => {
+      let homeworlds = await this.getHomeworlds();
+      homeworlds.sort(this.#compareByTitleReverseCallback);
+      resolve(homeworlds);
+    });
+  };
+}
+/* #endregion */
 
 export default {
   getMovieCount,
@@ -197,5 +282,7 @@ export default {
   getCharacterName,
   getMovieCharacters,
   getMovieCharactersAndHomeworlds,
-  getPlanetNameFromCharacter,
+  createMovie,
+  createMovieExercise8, //Exported for local tests
+  Movie,
 };

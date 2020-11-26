@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --passWithNoTests --silent",
-    "tdd": "jest --watchAll"
+    "test": "jest --passWithNoTests --silent --testTimeout=90000",
+    "tdd": "jest --watchAll --testTimeout=90s000"
   },
   "author": "",
   "license": "ISC",
